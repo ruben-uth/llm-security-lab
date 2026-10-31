@@ -1,0 +1,6 @@
+pytest
+ruff
+ollama
+chromadb
+sentence-transformers
+pyyaml
