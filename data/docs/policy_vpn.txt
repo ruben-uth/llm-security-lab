@@ -1,0 +1,2 @@
+Corporate VPN Policy
+All remote employees must connect to the GlobalProtect VPN before accessing internal systems. The VPN requires Multi-Factor Authentication (MFA) via the Duo Mobile app. If you lose your phone, contact IT Support immediately at ext 5555.
