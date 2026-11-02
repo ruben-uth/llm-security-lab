@@ -1,10 +1,8 @@
+# defenses.py
 import re
 
 def filter_input(user_query: str) -> bool:
-    """
-    Verifica se a pergunta do utilizador contém padrões maliciosos conhecidos.
-    Retorna True se for seguro, False se for detetado um ataque.
-    """
+    """Valida input contra padrões maliciosos (prompt injection/leaking)."""
     suspicious_patterns = [
         r"ignore all previous instructions",
         r"developer mode",
@@ -16,14 +14,11 @@ def filter_input(user_query: str) -> bool:
     
     for pattern in suspicious_patterns:
         if re.search(pattern, query_lower):
-            return False # Ataque detetado
-    return True # Seguro
+            return False # Match malicioso
+    return True # Clean
 
 def filter_output(llm_response: str) -> str:
-    """
-    Analisa a resposta do LLM antes de a devolver ao utilizador.
-    Substitui a resposta por um aviso se detetar marcadores de injeção ou dados sensíveis.
-    """
+    """Sanitiza output do LLM para evitar fuga de dados e injeções bem-sucedidas."""
     blocked_terms = [
         "CANARY-7F3K", 
         "PWNED-123", 

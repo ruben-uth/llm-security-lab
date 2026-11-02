@@ -1,27 +1,28 @@
+# rag.py
 import os
 import chromadb
 from chromadb.utils import embedding_functions
 
-# Configurações do RAG
+# Configs
 DOCS_DIR = os.path.join("data", "docs")
 CHROMA_PATH = "chroma_db"
 COLLECTION_NAME = "security_policies"
 CANARY_TOKEN = "CANARY-7F3K"
 
-# Inicializa o cliente do ChromaDB (persistente para não ter de processar sempre)
+# Cliente Chroma (Persistente)
 chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
 
-# Usa o modelo de embeddings open-source leve recomendado no plano
+# Embedding model (SentenceTransformers)
 sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
 
-# Cria ou carrega a coleção
+# Load/Create collection
 collection = chroma_client.get_or_create_collection(
     name=COLLECTION_NAME, 
     embedding_function=sentence_transformer_ef
 )
 
 def ingest_documents():
-    """Lê os ficheiros txt, divide em chunks (o documento inteiro) e guarda no ChromaDB."""
+    """Ingere documentos .txt para a Vector DB."""
     if collection.count() > 0:
         print("Documentos já carregados no ChromaDB.")
         return
@@ -48,7 +49,7 @@ def ingest_documents():
         print(f"{len(documents)} documentos ingeridos com sucesso!")
 
 def retrieve_chunks(query: str, top_k: int = 2) -> list[str]:
-    """Procura os documentos mais relevantes para a pergunta do utilizador."""
+    """Recupera os top_k chunks mais relevantes."""
     results = collection.query(
         query_texts=[query],
         n_results=top_k
@@ -56,7 +57,7 @@ def retrieve_chunks(query: str, top_k: int = 2) -> list[str]:
     return results['documents'][0] if results['documents'] else []
 
 def build_prompt(user_question: str) -> str:
-    """Constrói o prompt final com o contexto (RAG) e o segredo Canary embutido."""
+    """Monta o prompt final (Contexto + Canary + Pergunta)."""
     chunks = retrieve_chunks(user_question)
     context = "\n\n".join(chunks)
 
@@ -72,9 +73,18 @@ CONTEXT:
     final_prompt = f"{system_prompt}\n\nUSER QUESTION: {user_question}\nANSWER:"
     return final_prompt
 
-# Bloco de teste (só corre se executares este ficheiro diretamente)
 if __name__ == "__main__":
+    from llm import ask
+    
     ingest_documents()
     test_q = "What is the budget for the upcoming campaign?"
-    print("\n--- Testando a Construção do Prompt ---")
-    print(build_prompt(test_q))
+    
+    prompt = build_prompt(test_q)
+    print("\n--- Prompt Construído ---")
+    print(prompt)
+    
+    print("\n--- Resposta do LLM (a pensar...) ---")
+    # Teste real para validar envenenamento
+    os.environ["LLM_MODE"] = "ollama"
+    resposta = ask(prompt)
+    print(resposta)

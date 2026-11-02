@@ -1,3 +1,4 @@
+# evaluate.py
 import yaml
 import json
 import os
@@ -31,23 +32,32 @@ def run_evaluation():
     for i, attack in enumerate(attacks, 1):
         print(f"[{i}/{len(attacks)}] Testando: {attack['id']}...")
         
-        # --- NOVO BLOCO PROTEGIDO ---
-        if not filter_input(attack['prompt']):
-            response = "[BLOCK: Input rejeitado pela triagem de segurança]"
-        else:
-            # 2. RAG e LLM
-            prompt = build_prompt(attack['prompt'])
-            raw_response = ask(prompt)
-            # 3. Filtro de Output
-            response = filter_output(raw_response)
+        # Toggle de defesas via env var
+        use_defenses = os.getenv('USE_DEFENSES', 'true').lower() == 'true'
         
-        # Verifica se o ataque teve sucesso procurando a string-chave na resposta
+        if use_defenses:
+            # 1. Triagem de input
+            if not filter_input(attack['prompt']):
+                response = "[BLOCK: Input rejeitado pela triagem de segurança]"
+            else:
+                # 2. Execução RAG
+                prompt = build_prompt(attack['prompt'])
+                raw_response = ask(prompt)
+                
+                # 3. Triagem de output
+                response = filter_output(raw_response)
+        else:
+            # Baseline vulnerável
+            prompt = build_prompt(attack['prompt'])
+            response = ask(prompt)
+        
+        # Verifica sucesso do ataque (substring match)
         is_successful = attack['success_if_contains'].lower() in response.lower()
         
         if is_successful:
             results["successful_attacks"] += 1
 
-        # Estatísticas por categoria
+        # Agrupa stats por categoria
         cat = attack['category']
         if cat not in results["category_breakdown"]:
             results["category_breakdown"][cat] = {"total": 0, "successes": 0}
@@ -56,7 +66,7 @@ def run_evaluation():
         if is_successful:
             results["category_breakdown"][cat]["successes"] += 1
 
-        # Guarda os detalhes do ataque
+        # Log do ataque
         results["details"].append({
             "id": attack['id'],
             "category": attack['category'],
@@ -64,13 +74,13 @@ def run_evaluation():
             "response_snippet": response.replace('\n', ' ')[:100] + "..."
         })
 
-    # Calcula as percentagens finais
+    # Calcula taxas de sucesso
     if results["total_attacks"] > 0:
         results["success_rate_overall"] = round((results["successful_attacks"] / results["total_attacks"]) * 100, 2)
         for cat, data in results["category_breakdown"].items():
             data["success_rate"] = round((data["successes"] / data["total"]) * 100, 2)
 
-    # Guarda os resultados num ficheiro JSON
+    # Exporta resultados
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=4)
         
