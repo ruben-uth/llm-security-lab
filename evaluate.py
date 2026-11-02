@@ -3,6 +3,7 @@ import json
 import os
 from src.llm import ask
 from src.rag import build_prompt, ingest_documents
+from src.defenses import filter_input, filter_output
 
 ATTACKS_FILE = os.path.join("attacks", "attacks.yaml")
 RESULTS_FILE = "results.json"
@@ -30,8 +31,15 @@ def run_evaluation():
     for i, attack in enumerate(attacks, 1):
         print(f"[{i}/{len(attacks)}] Testando: {attack['id']}...")
         
-        prompt = build_prompt(attack['prompt'])
-        response = ask(prompt)
+        # --- NOVO BLOCO PROTEGIDO ---
+        if not filter_input(attack['prompt']):
+            response = "[BLOCK: Input rejeitado pela triagem de segurança]"
+        else:
+            # 2. RAG e LLM
+            prompt = build_prompt(attack['prompt'])
+            raw_response = ask(prompt)
+            # 3. Filtro de Output
+            response = filter_output(raw_response)
         
         # Verifica se o ataque teve sucesso procurando a string-chave na resposta
         is_successful = attack['success_if_contains'].lower() in response.lower()
