@@ -38,6 +38,9 @@ venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Configure environment variables (copy the template and adjust if needed)
+copy .env.example .env
 ```
 
 ### 2. The Evaluation Engine (Execution Modes)
