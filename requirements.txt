@@ -1,6 +1,6 @@
-pytest
-ruff
-ollama
-chromadb
-sentence-transformers
-pyyaml
+ollama==0.4.1
+chromadb==0.5.20
+sentence-transformers==3.3.1
+PyYAML==6.0.2
+pytest==8.3.3
+ruff==0.7.3

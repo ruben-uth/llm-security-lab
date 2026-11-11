@@ -1,75 +1,87 @@
-# 🛡️ LLM Security Lab: RAG Vulnerability Assessment & Mitigation
+# LLM Security Lab: RAG Poisoning & Prompt Injection Evaluation
 
-This project is a cybersecurity laboratory focused on assessing and mitigating vulnerabilities in **Retrieval-Augmented Generation (RAG)** systems powered by Large Language Models (LLMs). 
+A local, offline RAG (Retrieval-Augmented Generation) security testing environment designed to evaluate AI vulnerabilities and defensive mechanisms against the **OWASP Top 10 for LLM Applications (2025)**. 
 
-The main objective is to demonstrate, in a local and controlled environment, how vulnerabilities from the **OWASP Top 10 for LLM Applications** can be exploited, and how to implement defense layers (Input/Output Filters) to secure the architecture.
+This project demonstrates the progression from a vulnerable baseline to naive regex filtering, and finally to a robust, "secure-by-design" prompt hardening architecture.
 
-## Key Vulnerabilities Tested (OWASP)
+> **⚠️ DISCLAIMER:** All credentials, API keys, and Canary tokens in this repository (e.g., `CANARY-7F3K`, `prod_db_key_9948271`) are purely fictitious mock data created for security testing purposes.
 
-*   **LLM01: Prompt Injection (Direct & Indirect):** Tests focused on Direct Injections via chat and Indirect Injections through poisoned documents (RAG Data Poisoning), manipulating the LLM to bypass restrictions.
-*   **LLM06: Sensitive Information Disclosure:** Secret extraction attempts (Prompt Leaking), where the attacker uses extraction techniques to reveal confidential data (*Canary Tokens*) hardcoded in the *System Prompt*.
+## 🏗️ Architecture
 
-## Tech Stack & Architecture
+The system operates entirely locally to ensure data privacy during security testing.
 
-*   **LLM Engine:** LLaMA 3.1 (via local Ollama).
-*   **Vector Database:** ChromaDB (embedding storage and retrieval).
-*   **Embeddings:** `all-MiniLM-L6-v2` (HuggingFace `sentence-transformers`).
-*   **Evaluation Engine:** Custom Python framework based on YAML files to orchestrate structured attack payloads.
+* **LLM Engine:** Ollama (Llama 3.1:8B)
+* **Vector Database:** ChromaDB (Persistent)
+* **Embedding Model:** `sentence-transformers/all-MiniLM-L6-v2`
+* **Defenses Tested:** Input/Output RegEx Filtering vs. Role-Based Prompt Hardening.
 
-## Security Evaluation Results
+```mermaid
+graph TD
+    A[Attacker/User] -->|Prompt| B(Security Filters)
+    B -->|Bypass/Pass| C{RAG Engine}
+    C -->|Query| D[(ChromaDB)]
+    D -->|Poisoned Docs| C
+    C -->|Context + Prompt| E[LLaMA 3.1:8B]
+    E -->|Raw Output| F(Output Filters)
+    F -->|Sanitized or Leaked| A
+```
 
-The testing engine orchestrates 8 specific attacks. The results demonstrate the impact of implementing a *Zero Trust* architecture around the LLM:
+## 🛡️ Threat Model
 
-| Scenario | Attack Success Rate (Vulnerability) |
-| :--- | :--- |
-| **Baseline (System without defenses)** | **50.0%** |
-| **Secured (Input/Output Filters)** | **0.0%** |
+This lab evaluates the system against specific OWASP LLM 2025 vulnerabilities:
+* **LLM01: Prompt Injection** (Direct injections and Indirect RAG Poisoning via malicious `.txt` documents).
+* **LLM02: Sensitive Information Disclosure** (Extracting dummy API keys and PII).
+* **LLM07: System Prompt Leakage** (Extracting the system's foundational instructions and hidden Canary tokens).
 
-*Note: The defenses act as a firewall, analyzing malicious patterns in the user's prompt (Input Filter) and blocking sensitive data leakage in the model's response (Output Filter).*
+## 📊 Evaluation Results
 
-## Setup & Execution
+We ran a suite of 15+ complex attacks (including obfuscation, multi-language, and role-play) across different defensive postures.
 
-### 1. Requirements and Installation
-The project uses an isolated Python virtual environment and requires [Ollama](https://ollama.com/) installed with the `llama3.1` model pulled (`ollama run llama3.1`).
+| Posture | Defense Mechanism | Attack Success Rate | Notes |
+| :--- | :--- | :--- | :--- |
+| **Baseline** | None (Vulnerable) | **50.0%** | System highly susceptible to indirect RAG poisoning. |
+| **Naive Filters** | Input/Output Regex & Blocklists | **0.0%*** | *False sense of security. Filters were easily bypassed using spacing, Base64, and character substitution in Step 4. |
+| **Hardened** | Chat API Roles + `<context>` Delimitation | **0.0%** | True resilience. Segregating System instructions from untrusted RAG data neutralized the attacks at the architectural level. |
 
+## 🚀 Quickstart
+
+### Prerequisites
+* Python 3.11+
+* [Ollama](https://ollama.com/) installed and running with `llama3.1:8b` (`ollama run llama3.1`).
+
+### Installation (Cross-Platform: Windows / macOS / Linux)
+
+1. **Clone and setup virtual environment:**
 ```bash
-# Activate the virtual environment
-venv\Scripts\activate
+git clone [https://github.com/yourusername/llm-security-lab.git](https://github.com/yourusername/llm-security-lab.git)
+cd llm-security-lab
+python -m venv venv
+```
 
-# Install dependencies
+2. **Activate the environment:**
+* Windows: `venv\Scripts\activate`
+* macOS/Linux: `source venv/bin/activate`
+
+3. **Install dependencies:**
+```bash
 pip install -r requirements.txt
-
-# Configure environment variables (copy the template and adjust if needed)
-copy .env.example .env
 ```
 
-### 2. The Evaluation Engine (Execution Modes)
-To ensure development efficiency and save computational resources (CPU/GPU), the evaluation engine has two operation modes, controlled by environment variables:
+4. **Run the evaluation suite:**
+```bash
+# Run baseline evaluation
+python evaluate.py --mode ollama --out results_baseline.json
 
-*   **MOCK Mode (`LLM_MODE=mock`):** Instantly simulates LLM mechanics through static rules. Ideal for integration testing (CI/CD) and RAG architecture debugging without computational cost.
-*   **OLLAMA Mode (`LLM_MODE=ollama`):** Uses the actual local AI model for natural language processing and final validation of the attack surface.
-
-### 3. Test the Vulnerability (Baseline - 50% Success)
-To simulate the system in its natural (vulnerable) state, we disable the defenses:
-```cmd
-set LLM_MODE=ollama
-set USE_DEFENSES=false
-python evaluate.py
+# Run hardened evaluation
+python evaluate.py --mode ollama --defenses --out results_hardened.json
 ```
 
-### 4. Test the Mitigation (Secured - 0% Success)
-To activate the security barriers that block prompt injections and data leakage:
-```cmd
-set LLM_MODE=ollama
-set USE_DEFENSES=true
-python evaluate.py
+5. **Run tests:**
+```bash
+python -m pytest tests/
 ```
 
-## Project Structure
-
-*   `/attacks` - YAML attack catalog defining malicious prompts and success criteria.
-*   `/src` - Application core logic:
-    *   `rag.py` - Document ingestion and context-augmented prompt building.
-    *   `llm.py` - Ollama integration (Real mode) or test bypass (Mock mode).
-    *   `defenses.py` - Input Filters (Regex) and Output Filters (Data Masking).
-*   `evaluate.py` - Evaluation orchestrator that computes attack success metrics.
+## 🛑 Limitations
+* **Model Size:** Evaluated on an 8B parameter model. Larger models (e.g., 70B+) may follow complex obfuscated jailbreaks more strictly or, conversely, recognize them better.
+* **Deterministic Testing:** Temperature is set to `0.0` with a fixed seed for reproducibility. Real-world LLM behavior is non-deterministic.
+* **Filter Weakness:** The implemented regex filters are deliberately basic to demonstrate the fundamental flaw of relying on blocklists instead of architectural separation.
