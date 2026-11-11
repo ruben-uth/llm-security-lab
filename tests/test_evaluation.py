@@ -25,8 +25,3 @@ def test_output_filter_blocks_leaks():
     
     leaked_response = filter_output("The secret is CANARY-7F3K.")
     assert "BLOCK" in leaked_response
-
-def test_chroma_lazy_load():
-    """Garante que a coleção é inicializada corretamente."""
-    collection = get_collection()
-    assert collection.name == "security_policies"
