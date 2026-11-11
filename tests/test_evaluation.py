@@ -1,7 +1,6 @@
 import os
 from src.llm import ask
 from src.defenses import is_input_safe, filter_output
-from src.rag import get_collection
 
 # Força o modo mock para os testes
 os.environ["LLM_MODE"] = "mock"
