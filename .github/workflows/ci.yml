@@ -32,4 +32,4 @@ jobs:
       env:
         LLM_MODE: mock
       run: |
-        pytest tests/
+        python -m pytest tests/
